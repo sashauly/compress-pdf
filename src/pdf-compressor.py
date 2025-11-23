@@ -1,16 +1,25 @@
-import sys
 import os
 import subprocess
-from PyQt6.QtWidgets import (QApplication, QWidget, QLabel, QPushButton,
-                             QFileDialog, QGridLayout, QRadioButton, QToolButton,
-                             QFrame, QSizePolicy, QLineEdit, QVBoxLayout, QHBoxLayout, QButtonGroup)
-from PyQt6.QtGui import QPixmap, QIcon, QPalette, QColor, QFont
-from PyQt6.QtCore import Qt, QSize
-from PyQt6.QtWidgets import QMessageBox
+import sys
 import time
-from PyQt6.QtCore import QThread, pyqtSignal
-from PyQt6.QtCore import QMetaObject, Qt
+
 import humanize
+from PyQt6.QtCore import QMetaObject, Qt, QThread, pyqtSignal
+from PyQt6.QtGui import QFont, QPixmap
+from PyQt6.QtWidgets import (
+    QApplication,
+    QButtonGroup,
+    QFileDialog,
+    QFrame,
+    QHBoxLayout,
+    QLabel,
+    QLineEdit,
+    QMessageBox,
+    QPushButton,
+    QRadioButton,
+    QVBoxLayout,
+    QWidget,
+)
 
 if getattr(sys, 'frozen', False):
     app_dir = sys._MEIPASS  # PyInstaller's temp folder
@@ -25,15 +34,14 @@ class WorkerThread(QThread):
         self.command = command
 
     def run(self):
-        import time  # Import time inside the thread to avoid any issues
         start_time = time.time()
-        
+
         try:
             subprocess.run(self.command, check=True)
         except subprocess.CalledProcessError:
             self.finished.emit(-1)  # Emit -1 if compression fails
             return
-        
+
         elapsed_time = round(time.time() - start_time, 2)
         self.finished.emit(elapsed_time)  # Emit the time taken for compression
 
@@ -59,7 +67,7 @@ class PdfCompressor(QWidget):
         self.left_layout.addWidget(self.pdf_icon_label)
         self.left_layout.addWidget(self.or_label)
         self.left_layout.addWidget(self.select_button)
-        self.left_layout.setAlignment(Qt.AlignmentFlag.AlignCenter)         
+        self.left_layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
         # Placeholder for Logo
         self.logo_label = QLabel()
@@ -109,7 +117,7 @@ class PdfCompressor(QWidget):
         self.low_sub_label = QLabel("Smallest file size, reduced quality")
         self.low_sub_label.setStyleSheet("font-size: 12px; color: #5b5b5b;")
 
-        
+
         # Ensuring only one button is selected at a time
         self.radio_group = QButtonGroup(self)
         self.radio_group.addButton(self.high_radio)
@@ -131,7 +139,7 @@ class PdfCompressor(QWidget):
         separator = QFrame()
         separator.setFrameShape(QFrame.Shape.VLine)
         separator.setStyleSheet("border: 2px solid #CCCCCC;")
-        
+
         # Main Layout
         main_layout = QHBoxLayout()
         main_layout.addLayout(left_layout)
@@ -187,7 +195,7 @@ class PdfCompressor(QWidget):
         final_layout.addWidget(horizontal_separator)
         final_layout.addLayout(button_layout)
         final_layout.addSpacing(10)
-        
+
         self.setLayout(final_layout)
 
     def dragEnterEvent(self, event):
@@ -286,7 +294,7 @@ class PdfCompressor(QWidget):
 
         filename = os.path.splitext(os.path.basename(self.selected_file))[0]
         output_filename = f"compressed-{filename}.pdf"
-        
+
         output_folder = self.output_path.text().strip()
         if not output_folder:
             output_folder = os.path.expanduser("~/Desktop")
