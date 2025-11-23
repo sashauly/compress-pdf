@@ -1,0 +1,57 @@
+name: PDM Desktop Build - PDF Compressor
+
+on:
+    # Trigger the workflow on pushes to the main branch
+    push:
+        branches: [main]
+    # Trigger the workflow manually from the GitHub Actions tab
+    workflow_dispatch:
+    # Trigger on a new release to create official distribution files
+    release:
+        types: [published]
+
+jobs:
+    build:
+        # Use a matrix to run the job on different operating systems
+        strategy:
+            matrix:
+                os: [ubuntu-latest, windows-latest, macos-latest]
+
+        runs-on: ${{ matrix.os }}
+
+        steps:
+            - name: 📦 Checkout repository
+              uses: actions/checkout@v4
+
+            - name: 🐍 Setup PDM and Python
+              # Installs Python (reading version from pyproject.toml) and PDM, and enables caching
+              uses: pdm-project/setup-pdm@v4
+              with:
+                  python-version-file: pyproject.toml
+                  cache: true
+
+            - name: 🔧 Install Dependencies (Runtime & PyInstaller)
+              # Installs all required dependencies defined in pyproject.toml and pdm.lock
+              # Assuming PyInstaller is in a dev or build group, :all installs it.
+              run: pdm install --no-default -G :all
+
+            # --- Build Step ---
+            - name: 🚀 Build Executable with PyInstaller
+              # Use 'pdm run' to execute PyInstaller from the virtual environment
+              # and reference the spec file you modified: pdf-compressor.spec
+              run: pdm run pyinstaller pdf-compressor.spec
+
+            - name: 🏷️ Define Artifact Name
+              # Creates a friendly name for the artifact (e.g., pdf-compressor-Windows)
+              id: vars
+              run: echo "artifact_name=pdf-compressor-${{ runner.os }}" >> $GITHUB_OUTPUT
+
+            - name: ⬆️ Upload Artifact
+              uses: actions/upload-artifact@v4
+              with:
+                  # Use the name defined in the previous step
+                  name: ${{ steps.vars.outputs.artifact_name }}
+                  # PyInstaller outputs files into the 'dist' directory
+                  # The executable name will match your spec file's 'name' property
+                  path: dist/
+                  retention-days: 7

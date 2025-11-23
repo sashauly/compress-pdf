@@ -1,65 +1,90 @@
-import sys
 import os
 import subprocess
-from PyQt6.QtWidgets import (QApplication, QWidget, QLabel, QPushButton,
-                             QFileDialog, QGridLayout, QRadioButton, QToolButton,
-                             QFrame, QSizePolicy, QLineEdit, QVBoxLayout, QHBoxLayout, QButtonGroup)
-from PyQt6.QtGui import QPixmap, QIcon, QPalette, QColor, QFont
-from PyQt6.QtCore import Qt, QSize
-from PyQt6.QtWidgets import QMessageBox
+import sys
 import time
-from PyQt6.QtCore import QThread, pyqtSignal
-from PyQt6.QtCore import QMetaObject, Qt
+from typing import List, Optional, Union
+
 import humanize
+from PyQt6.QtCore import QSize, Qt, QThread, pyqtSignal
+from PyQt6.QtGui import QDragEnterEvent, QDropEvent, QFont, QPixmap
+from PyQt6.QtWidgets import (
+    QApplication,
+    QButtonGroup,
+    QFileDialog,
+    QFrame,
+    QHBoxLayout,
+    QLabel,
+    QLineEdit,
+    QMessageBox,
+    QPushButton,
+    QRadioButton,
+    QVBoxLayout,
+    QWidget,
+)
 
 if getattr(sys, 'frozen', False):
-    app_dir = sys._MEIPASS  # PyInstaller's temp folder
+    app_dir = getattr(sys, '_MEIPASS')  # PyInstaller's temp folder
 else:
     app_dir = os.path.dirname(os.path.abspath(__file__))
 
 class WorkerThread(QThread):
     finished = pyqtSignal(float)  # Signal to indicate when compression is done
+    command: Union[str, List[str]]
 
-    def __init__(self, command):
+    def __init__(self, command: Union[str, List[str]]):
         super().__init__()
         self.command = command
 
-    def run(self):
-        import time  # Import time inside the thread to avoid any issues
-        start_time = time.time()
-        
+    def run(self) -> None:
+        start_time: float = time.time()
+
         try:
             subprocess.run(self.command, check=True)
         except subprocess.CalledProcessError:
-            self.finished.emit(-1)  # Emit -1 if compression fails
+            self.finished.emit(-1.0)  # Emit -1 if compression fails
             return
-        
-        elapsed_time = round(time.time() - start_time, 2)
+
+        elapsed_time: float = round(time.time() - start_time, 2)
         self.finished.emit(elapsed_time)  # Emit the time taken for compression
 
 
 class PdfCompressor(QWidget):
-    def __init__(self):
+    selected_file: Optional[str] = None
+    message_box: QMessageBox
+    worker: WorkerThread
+    output_path: QLineEdit
+    compress_button: QPushButton
+    pdf_icon_label: QLabel
+    or_label: QLabel
+    select_button: QPushButton
+    logo_label: QLabel
+    high_radio: QRadioButton
+    medium_radio: QRadioButton
+    low_radio: QRadioButton
+    radio_group: QButtonGroup
+    output_label: QLabel
+    output_button: QPushButton
+    cancel_button: QPushButton
+
+    def __init__(self) -> None:
         super().__init__()
         self.initUI()
 
-    def compressPdf(self):
-        print("Compressing PDF...")  # Debugging print statement
-
-    def initUI(self):
+    def initUI(self) -> None:
         self.setWindowTitle("Compress PDF by It's FOSS")
         self.resize(700, 450)
         self.setAcceptDrops(True)
         self.setStyleSheet("background-color: #F8F9FA; font-family: 'Poppins'; border-radius: 10px;")
+
+        # Left Panel Initialization (Drag and Drop Area)
         self.pdf_icon_label = QLabel()
+        self.pdf_icon_label.setPixmap(QPixmap(os.path.join(app_dir, "assets/arc_pdf_icon.png")).scaled(50, 50, Qt.AspectRatioMode.KeepAspectRatio))
+        self.pdf_icon_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.pdf_icon_label.setStyleSheet("border: 4px dashed #bcbcbc; padding: 0px; border-radius: 10px;")
+        self.pdf_icon_label.setText("Drag & Drop a PDF Here")
+        self.pdf_icon_label.setFont(QFont("Poppins", 10, QFont.Weight.Bold))
+        self.pdf_icon_label.setFixedSize(QSize(260, 180)) # Use QSize for consistency
         self.pdf_icon_label.setFocusPolicy(Qt.FocusPolicy.NoFocus)
-        self.or_label = QLabel("OR")
-        self.select_button = QPushButton("Select PDF")
-        self.left_layout = QVBoxLayout()
-        self.left_layout.addWidget(self.pdf_icon_label)
-        self.left_layout.addWidget(self.or_label)
-        self.left_layout.addWidget(self.select_button)
-        self.left_layout.setAlignment(Qt.AlignmentFlag.AlignCenter)         
 
         # Placeholder for Logo
         self.logo_label = QLabel()
@@ -67,14 +92,6 @@ class PdfCompressor(QWidget):
         self.logo_label.setPixmap(QPixmap(os.path.join(app_dir, "assets/itsfoss-logo.webp")))
         self.logo_label.setAlignment(Qt.AlignmentFlag.AlignLeft)
 
-        # Left Panel - Drag and Drop Area
-        self.pdf_icon_label = QLabel()
-        self.pdf_icon_label.setPixmap(QPixmap("arc_pdf_icon.png").scaled(50, 50, Qt.AspectRatioMode.KeepAspectRatio))
-        self.pdf_icon_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self.pdf_icon_label.setStyleSheet("border: 4px dashed #bcbcbc; padding: 0px; border-radius: 10px;")
-        self.pdf_icon_label.setText("Drag & Drop a PDF Here")
-        self.pdf_icon_label.setFont(QFont("Poppins", 10, QFont.Weight.Bold))
-        self.pdf_icon_label.setFixedSize(260, 180)
 
         self.or_label = QLabel("OR")
         self.or_label.setFont(QFont("Poppins", 10, QFont.Weight.Bold))
@@ -109,7 +126,7 @@ class PdfCompressor(QWidget):
         self.low_sub_label = QLabel("Smallest file size, reduced quality")
         self.low_sub_label.setStyleSheet("font-size: 12px; color: #5b5b5b;")
 
-        
+
         # Ensuring only one button is selected at a time
         self.radio_group = QButtonGroup(self)
         self.radio_group.addButton(self.high_radio)
@@ -131,7 +148,7 @@ class PdfCompressor(QWidget):
         separator = QFrame()
         separator.setFrameShape(QFrame.Shape.VLine)
         separator.setStyleSheet("border: 2px solid #CCCCCC;")
-        
+
         # Main Layout
         main_layout = QHBoxLayout()
         main_layout.addLayout(left_layout)
@@ -169,6 +186,7 @@ class PdfCompressor(QWidget):
         self.compress_button.clicked.connect(self.compressPdf)
         self.compress_button.setEnabled(False)
 
+        # Redefine button_layout to include output controls
         button_layout = QHBoxLayout()
         button_layout.addWidget(self.output_label)
         button_layout.addWidget(self.output_path)
@@ -187,21 +205,34 @@ class PdfCompressor(QWidget):
         final_layout.addWidget(horizontal_separator)
         final_layout.addLayout(button_layout)
         final_layout.addSpacing(10)
-        
+
         self.setLayout(final_layout)
 
-    def dragEnterEvent(self, event):
-        if event.mimeData().hasUrls():
+    def dragEnterEvent(self, event: QDragEnterEvent | None) -> None: # pyright: ignore[reportIncompatibleMethodOverride]
+        if event is None:
+            return
+
+        mime_data = event.mimeData()
+        if mime_data is None:
+            return
+
+        if mime_data.hasUrls():
             event.acceptProposedAction()
 
-    def dropEvent(self, event):
-        files = [u.toLocalFile() for u in event.mimeData().urls()]
+    def dropEvent(self, event: QDropEvent | None) -> None: # pyright: ignore[reportIncompatibleMethodOverride]
+        if event is None:
+            return
+
+        mime_data = event.mimeData()
+        if mime_data is None:
+            return
+        files: List[str] = [u.toLocalFile() for u in mime_data.urls()]
         if files and files[0].lower().endswith('.pdf'):
             self.selected_file = files[0]
             self.displayPdfInfo()
             self.compress_button.setEnabled(True)
 
-    def displayPdfInfo(self):
+    def displayPdfInfo(self) -> None:
         if self.selected_file:
             file_name = os.path.basename(self.selected_file)
 
@@ -226,12 +257,14 @@ class PdfCompressor(QWidget):
             # ✅ Clear existing layout
             if self.pdf_icon_label.layout():
                 old_layout = self.pdf_icon_label.layout()
-                while old_layout.count():
-                    item = old_layout.takeAt(0)
-                    widget = item.widget()
-                    if widget is not None:
-                        widget.deleteLater()
-                del old_layout
+                if old_layout is not None:
+                    while old_layout.count():
+                        item = old_layout.takeAt(0)
+                        if item is not None:
+                            widget = item.widget()
+                            if widget is not None:
+                                widget.deleteLater()
+                    del old_layout
 
             # ✅ Create a vertical layout for file info
             layout = QVBoxLayout()
@@ -263,38 +296,59 @@ class PdfCompressor(QWidget):
             # Reset if no file is selected
             self.pdf_icon_label.setText("Drag & Drop a PDF Here")
             self.pdf_icon_label.setStyleSheet("border: 4px dashed #CCCCCC; padding: 30px; border-radius: 10px;")
-            self.pdf_icon_label.setPixmap(QPixmap("arc_pdf_icon.png").scaled(50, 50, Qt.AspectRatioMode.KeepAspectRatio))
+            self.pdf_icon_label.setPixmap(QPixmap(os.path.join(app_dir, "assets/arc_pdf_icon.png")).scaled(50, 50, Qt.AspectRatioMode.KeepAspectRatio))
             self.pdf_icon_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
             self.or_label.show()
             self.select_button.show()
 
-    def selectFile(self):
+    def selectFile(self) -> None:
         file_name, _ = QFileDialog.getOpenFileName(self, "Select PDF File", "", "PDF Files (*.pdf)")
         if file_name:
             self.selected_file = file_name
             self.displayPdfInfo()
             self.compress_button.setEnabled(True)
 
-    def selectOutputFolder(self):
+    def selectOutputFolder(self) -> None:
         folder = QFileDialog.getExistingDirectory(self, "Select Output Folder")
         if folder:
             self.output_path.setText(folder)
 
-    def compressPdf(self):
+    def compressPdf(self) -> None:
         if not self.selected_file:
             return
 
-        filename = os.path.splitext(os.path.basename(self.selected_file))[0]
+        selected_base = os.path.basename(self.selected_file)
+        filename = os.path.splitext(selected_base)[0]
         output_filename = f"compressed-{filename}.pdf"
-        
-        output_folder = self.output_path.text().strip()
-        if not output_folder:
+
+        output_folder_text = self.output_path.text().strip()
+
+        if not output_folder_text:
             output_folder = os.path.expanduser("~/Desktop")
+        else:
+            output_folder = output_folder_text
 
         output_file = os.path.join(output_folder, output_filename)
 
-        command = ["gs", "-sDEVICE=pdfwrite", "-dCompatibilityLevel=1.4", "-dPDFSETTINGS=/screen",
-                   "-dNOPAUSE", "-dBATCH", f"-sOutputFile={output_file}", self.selected_file]
+        pdf_settings = "/screen"
+
+        if self.high_radio.isChecked():
+            pdf_settings = "/printer"
+        elif self.medium_radio.isChecked():
+            pdf_settings = "/ebook"
+        elif self.low_radio.isChecked():
+            pdf_settings = "/screen"
+
+        command: List[str] = [
+            "gs",
+            "-sDEVICE=pdfwrite",
+            "-dCompatibilityLevel=1.4",
+            f"-dPDFSETTINGS={pdf_settings}",
+            "-dNOPAUSE",
+            "-dBATCH",
+            f"-sOutputFile={output_file}",
+            self.selected_file
+        ]
 
         # ✅ Show "Compressing..." message box
         self.message_box = QMessageBox(self)
@@ -309,14 +363,20 @@ class PdfCompressor(QWidget):
         self.worker.finished.connect(self.compressionFinished)  # ✅ Fix: This function must exist!
         self.worker.start()  # Start the background compression
 
-    def compressionFinished(self, elapsed_time):  # ✅ Fix: This function must exist!
-        if hasattr(self, 'message_box') and self.message_box is not None:
-            QMetaObject.invokeMethod(self.message_box, "accept", Qt.ConnectionType.QueuedConnection)
+    def compressionFinished(self, elapsed_time: float) -> None:
+        self.message_box.close()
 
-        if elapsed_time == -1:
-            QMessageBox.critical(self, "Error", "Compression failed. Make sure Ghostscript is installed.")
+        result_box = QMessageBox(self)
+        result_box.setWindowTitle("Compression Result")
+
+        if elapsed_time == -1.0:
+            result_box.setIcon(QMessageBox.Icon.Critical)
+            result_box.setText("🔴 **Error!** Compression failed or Ghostscript is not installed/accessible.")
         else:
-            QMessageBox.information(self, "Compression Complete", f"PDF compressed successfully in {elapsed_time} seconds!")
+            result_box.setIcon(QMessageBox.Icon.Information)
+            result_box.setText(f"✅ **Success!** Compression completed in **{elapsed_time:.2f} seconds**.")
+
+        result_box.exec()
 
 
 if __name__ == "__main__":

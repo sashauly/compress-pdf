@@ -44,3 +44,23 @@ stage/
 
 # Source archive packed by `snapcraft cleanbuild` before pushing to the LXD container
 /*_source.tar.bz2
+
+### IDE ###
+# VSCode
+.vscode/
+
+# PyCharm
+.idea/
+
+# Vim
+*.swp
+*.swo
+
+### Virtual environments ###
+.venv/
+.env
+
+### MyPy ###
+.mypy_cache/
+.dmypy.json
+dmypy.json
