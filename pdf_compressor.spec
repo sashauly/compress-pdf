@@ -2,10 +2,10 @@
 
 
 a = Analysis(
-    ['src/pdf-compressor.py'],
+    ['src/pdf_compressor.py'],
     pathex=[],
     binaries=[],
-    datas=[
+     datas=[
         ('assets/icon.png', 'assets'),
         ('assets/itsfoss-logo.webp', 'assets'),
         ('assets/pdf.png', 'assets'),
@@ -26,7 +26,7 @@ exe = EXE(
     a.binaries,
     a.datas,
     [],
-    name='pdf-compressor',
+    name='pdf_compressor',
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,
