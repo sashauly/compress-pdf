@@ -41,17 +41,28 @@ jobs:
               # and reference the spec file you modified: pdf-compressor.spec
               run: pdm run pyinstaller pdf-compressor.spec
 
-            - name: 🏷️ Define Artifact Name
-              # Creates a friendly name for the artifact (e.g., pdf-compressor-Windows)
-              id: vars
-              run: echo "artifact_name=pdf-compressor-${{ runner.os }}" >> $GITHUB_OUTPUT
+            - name: 🏷️ Define Artifact Name (Windows)
+              id: vars_win
+              if: runner.os == 'Windows'
+              shell: pwsh
+              run: |
+                # PowerShell syntax for setting output variables
+                echo "artifact_name=pdf-compressor-${{ runner.os }}" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+
+            - name: 🏷️ Define Artifact Name (Linux/macOS)
+              id: vars_unix
+              if: runner.os != 'Windows'
+              shell: bash
+              run: |
+                # Bash syntax for setting output variables
+                echo "artifact_name=pdf-compressor-${{ runner.os }}" >> $GITHUB_OUTPUT
 
             - name: ⬆️ Upload Artifact
               uses: actions/upload-artifact@v4
               with:
-                  # Use the name defined in the previous step
-                  name: ${{ steps.vars.outputs.artifact_name }}
-                  # PyInstaller outputs files into the 'dist' directory
-                  # The executable name will match your spec file's 'name' property
-                  path: dist/
-                  retention-days: 7
+                # Check which ID was used and reference the output
+                name: ${{ steps.vars_win.outputs.artifact_name || steps.vars_unix.outputs.artifact_name }}
+                # PyInstaller outputs files into the 'dist' directory
+                # The executable name will match your spec file's 'name' property
+                path: dist/
+                retention-days: 7
