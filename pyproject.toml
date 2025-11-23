@@ -1,0 +1,25 @@
+[project]
+name = "compress-pdf"
+version = "0.1.0"
+description = "Default template for PDM package"
+authors = [
+    {name = "Alexander Ulyanov", email = "alexander.ulyanov@tibbo.com"},
+]
+dependencies = [
+    "PyQt6",
+    "humanize",
+]
+requires-python = "==3.14.*"
+readme = "README.md"
+license = {text = "MIT"}
+
+
+[tool.pdm]
+distribution = false
+
+[dependency-groups]
+dev = [
+    "ruff>=0.14.6",
+    "pytest>=9.0.1",
+    "mypy>=1.18.2",
+]
